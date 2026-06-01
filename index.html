@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JCTS Operations — Calendar</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,700;12..96,800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f4f5f3;
+    --panel: #ffffff;
+    --ink: #1c1d1a;
+    --ink-soft: #5a5d56;
+    --line: #e4e6e0;
+    --line-strong: #d2d5cc;
+    --accent: #3d5a3d;
+    --accent-soft: #eef2ec;
+    --today: #fff6e6;
+    --today-ring: #d9a441;
+
+    --jt-private: #3b6ea5;     --jt-private-bg: #e7f0fa;
+    --jt-block-live: #b07d2a;  --jt-block-live-bg: #fbf1dc;
+    --jt-block-so: #4a8a52;    --jt-block-so-bg: #e6f4e8;
+    --jt-default: #6a6d64;     --jt-default-bg: #eef0ea;
+
+    --shadow: 0 1px 2px rgba(28,29,26,.04), 0 8px 24px rgba(28,29,26,.06);
+    --radius: 14px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+    line-height: 1.45;
+    padding: 28px;
+  }
+
+  .wrap { max-width: 1200px; margin: 0 auto; }
+
+  header {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 20px;
+    flex-wrap: wrap;
+    margin-bottom: 22px;
+  }
+  .title-block .eyebrow {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    margin-bottom: 4px;
+  }
+  .title-block h1 {
+    font-family: 'Bricolage Grotesque', sans-serif;
+    font-size: 30px;
+    font-weight: 700;
+    letter-spacing: -.02em;
+    line-height: 1.05;
+  }
+  .title-block h1 .who { color: var(--accent); }
+
+  .controls { display: flex; align-items: center; gap: 10px; }
+  .month-label {
+    font-family: 'Bricolage Grotesque', sans-serif;
+    font-size: 19px;
+    font-weight: 600;
+    min-width: 168px;
+    text-align: center;
+    letter-spacing: -.01em;
+  }
+  .nav-btn {
+    width: 38px; height: 38px;
+    border: 1px solid var(--line-strong);
+    background: var(--panel);
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 16px;
+    color: var(--ink);
+    display: grid; place-items: center;
+    transition: all .15s ease;
+  }
+  .nav-btn:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .today-btn {
+    padding: 0 16px; height: 38px;
+    border: 1px solid var(--line-strong);
+    background: var(--panel);
+    border-radius: 10px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--ink);
+    transition: all .15s ease;
+  }
+  .today-btn:hover { background: var(--accent-soft); border-color: var(--accent); }
+
+  .toolbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+  }
+  .selector-label {
+    font-size: 12px; font-weight: 600;
+    letter-spacing: .08em; text-transform: uppercase;
+    color: var(--ink-soft);
+  }
+  .staff-select {
+    appearance: none;
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--ink);
+    background: var(--panel);
+    border: 1px solid var(--line-strong);
+    border-radius: 10px;
+    padding: 9px 38px 9px 14px;
+    cursor: pointer;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%235a5d56' d='M6 8L0 0h12z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 14px center;
+    min-width: 220px;
+    transition: border-color .15s ease;
+  }
+  .staff-select:hover { border-color: var(--accent); }
+  .staff-select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+
+  .calendar {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+    position: relative;
+    min-height: 300px;
+  }
+  .weekdays {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    border-bottom: 1px solid var(--line);
+  }
+  .weekdays div {
+    padding: 12px 14px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    text-align: left;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    grid-auto-rows: minmax(118px, auto);
+  }
+  .cell {
+    border-right: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+    padding: 8px;
+    position: relative;
+    min-height: 118px;
+  }
+  .cell:nth-child(7n) { border-right: none; }
+  .cell.dim { background: #fafbf9; }
+  .cell.dim .date-num { color: #b9bcb3; }
+  .date-num {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink-soft);
+    margin-bottom: 6px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px; height: 26px;
+    border-radius: 50%;
+  }
+  .cell.today .date-num { background: var(--today-ring); color: #fff; }
+  .cell.today { background: var(--today); }
+
+  .event {
+    display: block;
+    width: 100%;
+    text-align: left;
+    border: none;
+    border-left: 3px solid var(--jt-default);
+    background: var(--jt-default-bg);
+    color: var(--ink);
+    border-radius: 5px;
+    padding: 4px 7px;
+    margin-bottom: 4px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    line-height: 1.25;
+    transition: transform .12s ease, box-shadow .12s ease;
+    overflow: hidden;
+  }
+  .event:hover { transform: translateX(1px); box-shadow: 0 2px 6px rgba(28,29,26,.12); }
+  .event .ev-time { font-size: 10.5px; color: var(--ink-soft); font-weight: 600; }
+  .event .ev-title {
+    display: block;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .event .ev-user {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--ink-soft);
+    background: rgba(28,29,26,.06);
+    border-radius: 4px;
+    padding: 1px 6px;
+    margin-top: 3px;
+    max-width: 100%;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+
+  .event.private    { border-left-color: var(--jt-private);    background: var(--jt-private-bg); }
+  .event.block-live { border-left-color: var(--jt-block-live); background: var(--jt-block-live-bg); }
+  .event.block-so   { border-left-color: var(--jt-block-so);   background: var(--jt-block-so-bg); }
+
+  .legend {
+    display: flex;
+    gap: 18px;
+    flex-wrap: wrap;
+    margin-top: 16px;
+    font-size: 12.5px;
+    color: var(--ink-soft);
+  }
+  .legend span { display: inline-flex; align-items: center; gap: 7px; }
+  .dot { width: 11px; height: 11px; border-radius: 3px; }
+
+  /* Loading / error states */
+  .state {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 12px;
+    background: var(--panel);
+    z-index: 5;
+    text-align: center;
+    padding: 30px;
+  }
+  .state.hidden { display: none; }
+  .spinner {
+    width: 34px; height: 34px;
+    border: 3px solid var(--line);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin .8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .state .msg { font-size: 13.5px; color: var(--ink-soft); }
+  .state .msg.err { color: #a8442a; max-width: 460px; }
+  .retry-btn {
+    margin-top: 4px;
+    padding: 8px 18px;
+    border: 1px solid var(--line-strong);
+    background: var(--panel);
+    border-radius: 9px;
+    cursor: pointer;
+    font-weight: 600; font-size: 13px;
+  }
+  .retry-btn:hover { background: var(--accent-soft); border-color: var(--accent); }
+
+  .overlay {
+    position: fixed; inset: 0;
+    background: rgba(28,29,26,.38);
+    backdrop-filter: blur(2px);
+    opacity: 0; pointer-events: none;
+    transition: opacity .2s ease;
+    z-index: 40;
+  }
+  .overlay.open { opacity: 1; pointer-events: auto; }
+  .panel {
+    position: fixed; top: 0; right: 0; bottom: 0;
+    width: 400px; max-width: 92vw;
+    background: var(--panel);
+    box-shadow: -10px 0 40px rgba(28,29,26,.18);
+    transform: translateX(100%);
+    transition: transform .26s cubic-bezier(.4,0,.2,1);
+    z-index: 50;
+    display: flex; flex-direction: column;
+  }
+  .panel.open { transform: translateX(0); }
+  .panel-head { padding: 24px 26px 18px; border-bottom: 1px solid var(--line); }
+  .panel-head .jt-tag {
+    display: inline-block;
+    font-size: 11px; font-weight: 600; letter-spacing: .04em;
+    padding: 3px 10px; border-radius: 20px; margin-bottom: 12px;
+    background: var(--jt-default-bg); color: var(--jt-default);
+  }
+  .panel-head h2 {
+    font-family: 'Bricolage Grotesque', sans-serif;
+    font-size: 22px; font-weight: 700; letter-spacing: -.01em; line-height: 1.15;
+  }
+  .panel-close {
+    position: absolute; top: 20px; right: 20px;
+    width: 32px; height: 32px;
+    border: none; background: var(--bg);
+    border-radius: 8px; cursor: pointer;
+    font-size: 16px; color: var(--ink-soft);
+    display: grid; place-items: center;
+  }
+  .panel-close:hover { background: var(--line); }
+  .panel-body { padding: 8px 26px 26px; overflow-y: auto; }
+  .field { padding: 14px 0; border-bottom: 1px solid var(--line); }
+  .field:last-child { border-bottom: none; }
+  .field .label {
+    font-size: 11px; font-weight: 600;
+    letter-spacing: .08em; text-transform: uppercase;
+    color: var(--ink-soft); margin-bottom: 4px;
+  }
+  .field .value { font-size: 14.5px; color: var(--ink); }
+  .field .value.empty { color: #b9bcb3; font-style: italic; }
+  .chip {
+    display: inline-block;
+    background: var(--accent-soft);
+    color: var(--accent);
+    border-radius: 6px;
+    padding: 3px 9px;
+    font-size: 13px;
+    font-weight: 500;
+    margin: 2px 4px 2px 0;
+  }
+
+  .footnote {
+    margin-top: 18px;
+    font-size: 12px;
+    color: var(--ink-soft);
+    text-align: center;
+  }
+
+  @media (max-width: 640px) {
+    body { padding: 14px; }
+    .grid { grid-auto-rows: minmax(86px, auto); }
+    .cell { min-height: 86px; padding: 5px; }
+    .event { font-size: 11px; }
+    .title-block h1 { font-size: 24px; }
+    .staff-select { min-width: 0; flex: 1; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="title-block">
+      <div class="eyebrow">JCTS Operations</div>
+      <h1 id="heading">Schedule — <span class="who" id="staffName">All Staff</span></h1>
+    </div>
+    <div class="controls">
+      <button class="today-btn" id="todayBtn">Today</button>
+      <button class="nav-btn" id="prevBtn" aria-label="Previous month">‹</button>
+      <div class="month-label" id="monthLabel">&nbsp;</div>
+      <button class="nav-btn" id="nextBtn" aria-label="Next month">›</button>
+    </div>
+  </header>
+
+  <div class="toolbar" id="toolbar">
+    <span class="selector-label">Viewing</span>
+    <select class="staff-select" id="staffSelect"></select>
+  </div>
+
+  <div class="calendar">
+    <div class="weekdays">
+      <div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div><div>Sun</div>
+    </div>
+    <div class="grid" id="grid"></div>
+
+    <!-- Loading state -->
+    <div class="state" id="loadingState">
+      <div class="spinner"></div>
+      <div class="msg">Loading jobs…</div>
+    </div>
+    <!-- Error state -->
+    <div class="state hidden" id="errorState">
+      <div class="msg err" id="errorMsg">Couldn't load the schedule.</div>
+      <button class="retry-btn" id="retryBtn">Try again</button>
+    </div>
+  </div>
+
+  <div class="legend">
+    <span><span class="dot" style="background:var(--jt-private)"></span> Private Work</span>
+    <span><span class="dot" style="background:var(--jt-block-live)"></span> ESB Block Live</span>
+    <span><span class="dot" style="background:var(--jt-block-so)"></span> ESB Block S/O</span>
+    <span><span class="dot" style="background:var(--jt-default)"></span> Other</span>
+  </div>
+
+  <div class="footnote">Live from JCTS Operations · refresh to see newly added jobs</div>
+</div>
+
+<div class="overlay" id="overlay"></div>
+<aside class="panel" id="panel">
+  <div class="panel-head">
+    <button class="panel-close" id="panelClose" aria-label="Close">✕</button>
+    <span class="jt-tag" id="dJobType">Job Type</span>
+    <h2 id="dTitle">Shift Title</h2>
+  </div>
+  <div class="panel-body" id="panelBody"></div>
+</aside>
+
+<script>
+/* =========================================================================
+   LIVE CONFIG
+   FLOW_URL is your Power Automate "Get JCTS Jobs" endpoint.
+   The page appends &staff=Name when a person is requested via ?staff= .
+   ========================================================================= */
+  const FLOW_URL = "https://default2fb8bec6bcdb4caba7a4c2324afcb4.c8.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/c351332cf3f44ad78d68bed40ac5d4f1/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=9JsJFvOZAzrR59vM9yICSENsIq-wkoEdF1tH6fUCVH8";
+
+  /* ---------- State ---------- */
+  let EVENTS = [];
+  let viewDate = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+  let currentStaff = "__all__";   // "__all__" = All Staff
+  let locked = false;             // true when opened via ?staff= link
+
+  /* ---------- Per-person link handling (?staff=Name) ---------- */
+  const params = new URLSearchParams(window.location.search);
+  const staffParam = params.get("staff");
+  if (staffParam) {
+    currentStaff = staffParam;
+    locked = true;
+    document.getElementById("toolbar").style.display = "none";
+  }
+
+  /* ---------- Data loading ---------- */
+  async function loadEvents() {
+    showState("loading");
+    try {
+      // For a locked per-person link, filter server-side so only their data is sent.
+      // For the All view, fetch everything and filter client-side via the dropdown.
+      let url = FLOW_URL;
+      if (locked) url += "&staff=" + encodeURIComponent(currentStaff);
+
+      const res = await fetch(url);
+      if (!res.ok) throw new Error("Server returned " + res.status);
+      const data = await res.json();
+      if (!Array.isArray(data)) throw new Error("Unexpected response format");
+
+      // keep only rows with a usable start date
+      EVENTS = data.filter(e => e.start && !isNaN(new Date(e.start).getTime()));
+
+      if (!locked) buildSelect();
+      jumpToRelevantMonth();
+      hideState();
+      render();
+    } catch (err) {
+      showState("error", err.message);
+    }
+  }
+
+  function showState(which, detail) {
+    const load = document.getElementById("loadingState");
+    const errl = document.getElementById("errorState");
+    if (which === "loading") { load.classList.remove("hidden"); errl.classList.add("hidden"); }
+    else if (which === "error") {
+      load.classList.add("hidden"); errl.classList.remove("hidden");
+      document.getElementById("errorMsg").textContent =
+        "Couldn't load the schedule. " + (detail ? "(" + detail + ")" : "") +
+        " Check your connection and try again.";
+    }
+  }
+  function hideState() {
+    document.getElementById("loadingState").classList.add("hidden");
+    document.getElementById("errorState").classList.add("hidden");
+  }
+
+  /* ---------- Staff dropdown ---------- */
+  function uniqueStaff() {
+    return [...new Set(EVENTS.map(e => e.users).filter(Boolean))].sort();
+  }
+  function buildSelect() {
+    const sel = document.getElementById("staffSelect");
+    sel.innerHTML = "";
+    const all = document.createElement("option");
+    all.value = "__all__"; all.textContent = "All Staff";
+    sel.appendChild(all);
+    uniqueStaff().forEach(name => {
+      const o = document.createElement("option");
+      o.value = name; o.textContent = name;
+      sel.appendChild(o);
+    });
+    sel.value = currentStaff;
+  }
+
+  /* ---------- Helpers ---------- */
+  const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+  function jobTypeClass(jt) {
+    if (jt === "Private Work") return "private";
+    if (jt === "ESB Block Live") return "block-live";
+    if (jt === "ESB Block S/O") return "block-so";
+    return "";
+  }
+  function fmtTime(iso) {
+    const d = new Date(iso);
+    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+  }
+  function sameDay(a, b) {
+    return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+  }
+  function isAll() { return currentStaff === "__all__"; }
+  function visibleEvents() {
+    if (isAll()) return EVENTS;
+    return EVENTS.filter(e => e.users === currentStaff);
+  }
+
+  /* Open on the current month, unless there are no jobs this month;
+     then jump to the month of the job closest to today so it isn't blank. */
+  function jumpToRelevantMonth() {
+    const now = new Date();
+    const thisMonthHas = visibleEvents().some(e => {
+      const d = new Date(e.start);
+      return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+    });
+    if (thisMonthHas || visibleEvents().length === 0) {
+      viewDate = new Date(now.getFullYear(), now.getMonth(), 1);
+      return;
+    }
+    let closest = null, best = Infinity;
+    visibleEvents().forEach(e => {
+      const d = new Date(e.start);
+      const diff = Math.abs(d - now);
+      if (diff < best) { best = diff; closest = d; }
+    });
+    viewDate = closest ? new Date(closest.getFullYear(), closest.getMonth(), 1)
+                       : new Date(now.getFullYear(), now.getMonth(), 1);
+  }
+
+  /* ---------- Render ---------- */
+  function updateHeading() {
+    document.getElementById("staffName").textContent = isAll() ? "All Staff" : currentStaff;
+  }
+  function render() {
+    updateHeading();
+    const year = viewDate.getFullYear(), month = viewDate.getMonth();
+    document.getElementById("monthLabel").textContent = MONTHS[month] + " " + year;
+
+    const grid = document.getElementById("grid");
+    grid.innerHTML = "";
+
+    const first = new Date(year, month, 1);
+    let startOffset = (first.getDay() + 6) % 7;
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const today = new Date();
+    const prevDays = new Date(year, month, 0).getDate();
+
+    for (let i = startOffset - 1; i >= 0; i--) grid.appendChild(buildCell(new Date(year, month - 1, prevDays - i), true));
+    for (let d = 1; d <= daysInMonth; d++) grid.appendChild(buildCell(new Date(year, month, d), false, today));
+    const totalSoFar = startOffset + daysInMonth;
+    const trailing = (7 - (totalSoFar % 7)) % 7;
+    for (let d = 1; d <= trailing; d++) grid.appendChild(buildCell(new Date(year, month + 1, d), true));
+  }
+
+  function buildCell(date, dim, today) {
+    const cell = document.createElement("div");
+    cell.className = "cell" + (dim ? " dim" : "");
+    if (today && sameDay(date, today)) cell.classList.add("today");
+
+    const num = document.createElement("span");
+    num.className = "date-num";
+    num.textContent = date.getDate();
+    cell.appendChild(num);
+
+    if (!dim) {
+      visibleEvents().filter(ev => sameDay(new Date(ev.start), date)).forEach(ev => {
+        const btn = document.createElement("button");
+        btn.className = "event " + jobTypeClass(ev.jobType);
+        let inner = '<span class="ev-time">' + fmtTime(ev.start) + '</span>' +
+                    '<span class="ev-title">' + escapeHtml(ev.title || "(no title)") + '</span>';
+        if (isAll()) inner += '<span class="ev-user">' + escapeHtml(ev.users || "") + '</span>';
+        btn.innerHTML = inner;
+        btn.onclick = () => openPanel(ev);
+        cell.appendChild(btn);
+      });
+    }
+    return cell;
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  /* ---------- Detail panel ---------- */
+  function field(label, value) {
+    const v = (value === null || value === undefined || value === "") ?
+      '<span class="value empty">—</span>' : '<span class="value">' + escapeHtml(value) + '</span>';
+    return '<div class="field"><div class="label">' + label + '</div>' + v + '</div>';
+  }
+  function chips(value) {
+    if (!value) return '<span class="value empty">—</span>';
+    return '<span class="value">' + String(value).split('&').map(s => '<span class="chip">' + escapeHtml(s.trim()) + '</span>').join('') + '</span>';
+  }
+  function openPanel(ev) {
+    document.getElementById("dTitle").textContent = ev.title || "(no title)";
+    const tag = document.getElementById("dJobType");
+    tag.textContent = ev.jobType || "—";
+    const cls = jobTypeClass(ev.jobType);
+    const colourMap = {
+      "private":    ["var(--jt-private-bg)", "var(--jt-private)"],
+      "block-live": ["var(--jt-block-live-bg)", "var(--jt-block-live)"],
+      "block-so":   ["var(--jt-block-so-bg)", "var(--jt-block-so)"]
+    };
+    const c = colourMap[cls] || ["var(--jt-default-bg)", "var(--jt-default)"];
+    tag.style.background = c[0]; tag.style.color = c[1];
+
+    const start = new Date(ev.start);
+    const dateStr = start.toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+    const timeStr = fmtTime(ev.start) + (ev.end ? " – " + fmtTime(ev.end) : "");
+
+    document.getElementById("panelBody").innerHTML =
+      field("Date", dateStr) +
+      field("Time", timeStr) +
+      field("Assigned to", ev.users) +
+      '<div class="field"><div class="label">Vehicles</div>' + chips(ev.vehicles) + '</div>' +
+      '<div class="field"><div class="label">Specialist Vehicles</div>' + chips(ev.specialist) + '</div>' +
+      field("Total Timings", ev.timings ? ev.timings + " hrs" : "") +
+      field("Notes", ev.notes);
+
+    document.getElementById("overlay").classList.add("open");
+    document.getElementById("panel").classList.add("open");
+  }
+  function closePanel() {
+    document.getElementById("overlay").classList.remove("open");
+    document.getElementById("panel").classList.remove("open");
+  }
+
+  /* ---------- Events ---------- */
+  document.getElementById("staffSelect").onchange = (e) => { currentStaff = e.target.value; render(); };
+  document.getElementById("prevBtn").onclick = () => { viewDate.setMonth(viewDate.getMonth() - 1); render(); };
+  document.getElementById("nextBtn").onclick = () => { viewDate.setMonth(viewDate.getMonth() + 1); render(); };
+  document.getElementById("todayBtn").onclick = () => { const n = new Date(); viewDate = new Date(n.getFullYear(), n.getMonth(), 1); render(); };
+  document.getElementById("overlay").onclick = closePanel;
+  document.getElementById("panelClose").onclick = closePanel;
+  document.getElementById("retryBtn").onclick = loadEvents;
+  document.addEventListener("keydown", e => { if (e.key === "Escape") closePanel(); });
+
+  /* ---------- Go ---------- */
+  loadEvents();
+</script>
+</body>
+</html>

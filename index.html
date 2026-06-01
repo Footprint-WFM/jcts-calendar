@@ -501,6 +501,17 @@
     const d = new Date(iso);
     return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
   }
+  function isMidnight(d) { return d.getHours() === 0 && d.getMinutes() === 0; }
+  /* "All Day" when both start and end sit at 00:00; otherwise a start-end range */
+  function isAllDay(ev) {
+    const s = new Date(ev.start);
+    const e = ev.end ? new Date(ev.end) : null;
+    return isMidnight(s) && (!e || isMidnight(e));
+  }
+  function timeLabel(ev) {
+    if (isAllDay(ev)) return "All Day";
+    return fmtTime(ev.start) + (ev.end ? " - " + fmtTime(ev.end) : "");
+  }
   function sameDay(a, b) {
     return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
   }
@@ -571,7 +582,7 @@
       visibleEvents().filter(ev => sameDay(new Date(ev.start), date)).forEach(ev => {
         const btn = document.createElement("button");
         btn.className = "event " + jobTypeClass(ev.jobType);
-        let inner = '<span class="ev-time">' + fmtTime(ev.start) + '</span>' +
+        let inner = '<span class="ev-time">' + timeLabel(ev) + '</span>' +
                     '<span class="ev-title">' + escapeHtml(ev.title || "(no title)") + '</span>';
         if (isAll()) inner += '<span class="ev-user">' + escapeHtml(ev.users || "") + '</span>';
         btn.innerHTML = inner;
@@ -611,7 +622,7 @@
 
     const start = new Date(ev.start);
     const dateStr = start.toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-    const timeStr = fmtTime(ev.start) + (ev.end ? " – " + fmtTime(ev.end) : "");
+    const timeStr = timeLabel(ev);
 
     document.getElementById("panelBody").innerHTML =
       field("Date", dateStr) +

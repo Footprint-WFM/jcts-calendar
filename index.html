@@ -422,8 +422,11 @@
 
   /* ---------- Per-person link handling (?staff=Name) ---------- */
   const params = new URLSearchParams(window.location.search);
-  const staffParam = params.get("staff");
+  let staffParam = params.get("staff");
   if (staffParam) {
+    // Decode any percent-encoding (e.g. %20 -> space) so the name displays
+    // and matches the data correctly. Guard against malformed input.
+    try { staffParam = decodeURIComponent(staffParam); } catch (e) { /* leave as-is */ }
     currentStaff = staffParam;
     locked = true;
     document.getElementById("toolbar").style.display = "none";

@@ -158,7 +158,7 @@
   }
   .grid {
     display: grid;
-    grid-template-columns: repeat(7, 1fr);
+    grid-template-columns: repeat(7, minmax(0, 1fr));
     grid-auto-rows: minmax(118px, auto);
   }
   .cell {
@@ -167,6 +167,7 @@
     padding: 8px;
     position: relative;
     min-height: 118px;
+    min-width: 0;
   }
   .cell:nth-child(7n) { border-right: none; }
   .cell.dim { background: #fafbf9; }
@@ -202,15 +203,18 @@
     line-height: 1.25;
     transition: transform .12s ease, box-shadow .12s ease;
     overflow: hidden;
+    min-width: 0;
   }
   .event:hover { transform: translateX(1px); box-shadow: 0 2px 6px rgba(28,29,26,.12); }
   .event .ev-time { font-size: 10.5px; color: var(--ink-soft); font-weight: 600; }
   .event .ev-title {
     display: block;
-    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   .event .ev-user {
-    display: inline-block;
+    display: block;
     font-size: 10px;
     font-weight: 600;
     color: var(--ink-soft);
@@ -219,7 +223,10 @@
     padding: 1px 6px;
     margin-top: 3px;
     max-width: 100%;
-    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    word-break: break-word;
   }
 
   .event.private    { border-left-color: var(--jt-private);    background: var(--jt-private-bg); }
@@ -424,20 +431,22 @@
   const params = new URLSearchParams(window.location.search);
   let staffParam = params.get("staff");
   if (staffParam) {
-    // Decode any percent-encoding (e.g. %20 -> space) so the name displays
-    // and matches the data correctly. Guard against malformed input.
     try { staffParam = decodeURIComponent(staffParam); } catch (e) { /* leave as-is */ }
     currentStaff = staffParam;
     locked = true;
     document.getElementById("toolbar").style.display = "none";
   }
 
+  /* ---------- Helper: check if a staff name appears in a comma-separated users string ---------- */
+  function usersInclude(usersStr, name) {
+    if (!usersStr || !name) return false;
+    return usersStr.split(',').map(s => s.trim()).includes(name.trim());
+  }
+
   /* ---------- Data loading ---------- */
   async function loadEvents() {
     showState("loading");
     try {
-      // For a locked per-person link, filter server-side so only their data is sent.
-      // For the All view, fetch everything and filter client-side via the dropdown.
       let url = FLOW_URL;
       if (locked) url += "&staff=" + encodeURIComponent(currentStaff);
 
@@ -446,7 +455,6 @@
       const data = await res.json();
       if (!Array.isArray(data)) throw new Error("Unexpected response format");
 
-      // keep only rows with a usable start date
       EVENTS = data.filter(e => e.start && !isNaN(new Date(e.start).getTime()));
 
       if (!locked) buildSelect();
@@ -474,10 +482,23 @@
     document.getElementById("errorState").classList.add("hidden");
   }
 
-  /* ---------- Staff dropdown ---------- */
+  /* ---------- Staff dropdown ----------
+     For multi-value users, split each event's users string and collect
+     all unique individual names for the dropdown.
+  ---------------------------------------- */
   function uniqueStaff() {
-    return [...new Set(EVENTS.map(e => e.users).filter(Boolean))].sort();
+    const names = new Set();
+    EVENTS.forEach(e => {
+      if (e.users) {
+        e.users.split(',').forEach(n => {
+          const trimmed = n.trim();
+          if (trimmed) names.add(trimmed);
+        });
+      }
+    });
+    return [...names].sort();
   }
+
   function buildSelect() {
     const sel = document.getElementById("staffSelect");
     sel.innerHTML = "";
@@ -505,7 +526,6 @@
     return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
   }
   function isMidnight(d) { return d.getHours() === 0 && d.getMinutes() === 0; }
-  /* "All Day" when both start and end sit at 00:00; otherwise a start-end range */
   function isAllDay(ev) {
     const s = new Date(ev.start);
     const e = ev.end ? new Date(ev.end) : null;
@@ -519,13 +539,14 @@
     return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
   }
   function isAll() { return currentStaff === "__all__"; }
+
+  /* For multi-value users: show event if All Staff, or if current staff name
+     appears anywhere in the comma-separated users string */
   function visibleEvents() {
     if (isAll()) return EVENTS;
-    return EVENTS.filter(e => e.users === currentStaff);
+    return EVENTS.filter(e => usersInclude(e.users, currentStaff));
   }
 
-  /* Open on the current month, unless there are no jobs this month;
-     then jump to the month of the job closest to today so it isn't blank. */
   function jumpToRelevantMonth() {
     const now = new Date();
     const thisMonthHas = visibleEvents().some(e => {
@@ -606,10 +627,13 @@
       '<span class="value empty">—</span>' : '<span class="value">' + escapeHtml(value) + '</span>';
     return '<div class="field"><div class="label">' + label + '</div>' + v + '</div>';
   }
+
+  /* chips() now splits on comma since vehicles/specialist are comma-separated */
   function chips(value) {
     if (!value) return '<span class="value empty">—</span>';
-    return '<span class="value">' + String(value).split('&').map(s => '<span class="chip">' + escapeHtml(s.trim()) + '</span>').join('') + '</span>';
+    return '<span class="value">' + String(value).split(',').map(s => '<span class="chip">' + escapeHtml(s.trim()) + '</span>').join('') + '</span>';
   }
+
   function openPanel(ev) {
     document.getElementById("dTitle").textContent = ev.title || "(no title)";
     const tag = document.getElementById("dJobType");
